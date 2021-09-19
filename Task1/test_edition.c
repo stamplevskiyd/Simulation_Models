@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
-#define SIZE 20
+#include <time.h>
+#define SIZE 4
 double a[SIZE][SIZE];
 double new[SIZE][SIZE];
 int i;
@@ -11,6 +12,7 @@ double  c[SIZE][SIZE];
 
 void main( int argc, char **argv )
 {
+    srand(time(NULL));
     int j,k;
     for( i=0; i < SIZE; i++ )
     {
@@ -70,4 +72,9 @@ void main( int argc, char **argv )
             }
     }
     printf("Everything is fine\n");
+    for( j = 0; j < SIZE; j++ ) {
+        for (i = 0; i < SIZE; i++)
+            printf(" %.1f", b[i][j]);
+        printf("\n");
+    }
 }
