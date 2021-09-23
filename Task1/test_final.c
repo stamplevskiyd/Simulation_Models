@@ -45,6 +45,4 @@ void main( int argc, char **argv )
         for (j = 0; j < SIZE; j++)
             a[j][i] += arr2[i];
     }
-
-
 }
