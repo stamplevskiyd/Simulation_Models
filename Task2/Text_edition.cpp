@@ -169,6 +169,8 @@ int main(int argc, char **argv )
                     queue.pop_front();
                     calendar.put(new Event(curr_time+rq->time, EV_FIN, rq->source_num));
                     cout << "Task from queue from " << curr_ev->attr << " client was given to processors" << endl;
+                    if (curr_ev->attr == 1) First_client--; // Иначе эти задачи посчитаем при их регистрации и при выходе из очереди. То есть дважды
+                    else Second_client--;
                     delete rq;
                     run_begin = curr_time;
                 } break;
@@ -180,6 +182,7 @@ int main(int argc, char **argv )
     cout << "Second client made " << Second_client << " requests" << endl;
     cout << "First server processed " << First_completed << " requests" << endl;
     cout << "Second server processed " << Second_completed << " requests" << endl;
+    cout << "Not processed: " << queue.size() + calendar.size() << endl;  //подумать, что с этим сделать
 } // main
 
 int rc = 0; int pc = 0;
