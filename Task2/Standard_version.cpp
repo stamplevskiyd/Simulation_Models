@@ -106,7 +106,7 @@ int main(int argc, char **argv )
                 if (Got_last_task == 2) // если предыдущий запрос взял второй, значит этот берет первый
                 {
                     dt = get_req_time(curr_ev->attr); //все равно считается отдельно для разных процессоров
-                    cout << "CPU-1: dt " << dt << " num " << curr_ev->attr << endl;
+                    cout << "CPU-1 (get): dt " << dt << " num " << curr_ev->attr << endl;
                     if (cpu_state1 == IDLE) // очередь и календарь оставим общие
                     {
                         Got_last_task = 1;
@@ -116,15 +116,14 @@ int main(int argc, char **argv )
                         run_begin1 = curr_time;
                         //освободим процессоры и отметим, что первый брал задание, на шаге fin
                     } else {
-                        queue1.push_back(new Request(dt,
-                                                     curr_ev->attr)); // это задание идет в очередь, независимо от занятости второго процессора, ввиду заданной логики планировщика
+                        queue1.push_back(new Request(dt, curr_ev->attr)); // это задание идет в очередь, независимо от занятости второго процессора, ввиду заданной логики планировщика
                         cout << "Queue" << endl;
                     }
                 }
                 else // как в предыдущем варианте, но процессоры меняются местами
                 {
                     dt = get_req_time(curr_ev->attr);
-                    cout << "CPU-2: dt " << dt << " num " << curr_ev->attr << endl;
+                    cout << "CPU-2 (get): dt " << dt << " num " << curr_ev->attr << endl;
                     if (cpu_state2 == IDLE) // очередь и календарь оставим общие
                     {
                         Got_last_task = 2;
@@ -145,7 +144,7 @@ int main(int argc, char **argv )
                 // объявляем процессор свободным и размещаем задание из очереди, если таковое есть
                 if (First_finished)// если эта запись о завершении задания относится к первому процессору
                 {
-                    cout << "CPU-1. Работа с " << run_begin1 << " по " << curr_time << " длит. " << (curr_time - run_begin1) << endl;
+                    cout << "CPU-1 (finish). Работа с " << run_begin1 << " по " << curr_time << " длит. " << (curr_time - run_begin1) << endl;
                     cpu_state1 = IDLE;
                     First_finished = false;
                     if (!queue1.empty()) //если в очереди есть задача, кидаем ее в календарь
@@ -159,7 +158,7 @@ int main(int argc, char **argv )
                 }
                 else
                 {
-                    cout << "CPU-2. Работа с " << run_begin2 << " по " << curr_time << " длит. " << (curr_time - run_begin2) << endl;
+                    cout << "CPU-2 (finish). Работа с " << run_begin2 << " по " << curr_time << " длит. " << (curr_time - run_begin2) << endl;
                     cpu_state2 = IDLE;
                     Second_finished = false;
                     if (!queue2.empty()) //если в очереди есть задача, кидаем ее в календарь
