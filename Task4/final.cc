@@ -15,14 +15,13 @@
 #include "ns3/csma-module.h"
 
 // константные данные вроде числа клиентов и размера пакета
-
-
 #define CLIENT_NUM  30 // число клиентов
 #define SIM_TIME 10.0 // время симуляции
 #define CH_DELAY 300 // время на передачу сообщения по каналу
 #define alpha 50.0  // альфа, параметр экспоненциального распределения
 #define PCK_SIZE 1500 // размер пакета
 #define q_max_size "100p" // максимальный размер очереди на хосте
+#define B "100Mbps"
 
 using namespace ns3;
 using generator = std::default_random_engine;  // задаем распределение
@@ -45,10 +44,15 @@ long max_queue = 0;
 long queue[CLIENT_NUM];  // очереди клиентов в момент времени
 long max_queue_clients[CLIENT_NUM]; // максимальные очереди клиентов
 
+ // статистика
+double lost_rate_avg = 0;
+double max_queue_avg = 0;
+double queue_avg = 0;
 
 NS_LOG_COMPONENT_DEFINE("Client");
 
-class Client : public Application { // модуль приложения
+class Client : public Application
+{ // модуль приложения
 public:
     Client();
     virtual ~Client();
@@ -68,18 +72,21 @@ public:
     int m_num;
 };
 
-Client::Client() {
+Client::Client()
+{
     m_socket = 0;
     m_running = false;
 }
 
-Client::~Client() {
+Client::~Client()
+{
     m_socket = 0;
     delete gen;
     delete distr;
 }
 
-void Client::Setup(Ptr <Socket> socket, Address address, generator *gen1, distribution *distr1, Ptr <Queue<Packet>> que1, std::string name1, int num1) {
+void Client::Setup(Ptr <Socket> socket, Address address, generator *gen1, distribution *distr1, Ptr <Queue<Packet>> que1, std::string name1, int num1)
+{
     m_socket = socket;
     m_peer = address;
     gen = gen1;
@@ -106,7 +113,8 @@ void Client::send() // отправка пакета и постановка в 
     }
 }
 
-void Client::StartApplication() {
+void Client::StartApplication()
+{
     m_running = true;
     m_socket->Bind();
     m_socket->Connect(m_peer);
@@ -115,7 +123,8 @@ void Client::StartApplication() {
     m_sendEvent = Simulator::Schedule(Seconds(0.0), &Client::send, this);
 }
 
-void Client::StopApplication() {
+void Client::StopApplication()
+{
     m_running = false;
     if (m_sendEvent.IsRunning())
         Simulator::Cancel(m_sendEvent);
@@ -124,7 +133,8 @@ void Client::StopApplication() {
 }
 
 
-static void duplicate(std::string context, Ptr<const Packet> p) {
+static void duplicate(std::string context, Ptr<const Packet> p)
+{
     std::string::size_type pos = context.find(':');
     int i = std::stoi(context.substr(5, pos-1));
     duplicates[i]++;
@@ -142,14 +152,13 @@ static void drop(std::string context, Ptr<const Packet> p)
 
 int main(int argc, char **argv) {
     LogComponentEnable("Client", LOG_LEVEL_INFO);
+
     NodeContainer nodes;
     nodes.Create(CLIENT_NUM); // задаем число клиентов
-
     CsmaHelper csma;
-    csma.SetChannelAttribute("DataRate", StringValue("100Mbps"));  // задаем характеристики системы: B = 100mbps
+    csma.SetChannelAttribute("DataRate", StringValue(B));  // задаем характеристики системы: B = 100mbps
     csma.SetChannelAttribute("Delay", TimeValue(NanoSeconds(CH_DELAY)));  // задержка на распространение по каналу
     csma.SetQueue("ns3::DropTailQueue");
-
     NetDeviceContainer devices = csma.Install(nodes);
 
     std::vector<Ptr < Queue < Packet>>> queues;
@@ -166,11 +175,9 @@ int main(int argc, char **argv) {
 
     InternetStackHelper stack;
     stack.Install(nodes);
-
     Ipv4AddressHelper address;
     address.SetBase("10.0.1.0", "255.255.255.0");  // назначаем ip адреса из сети 10.0.1.0 с маской 24 (на последний октет)
     Ipv4InterfaceContainer interfaces = address.Assign(devices);
-
     uint16_t sinkPort = 8080;
     Address sinkAddress(InetSocketAddress(interfaces.GetAddress(CLIENT_NUM - 1), sinkPort));
     PacketSinkHelper packetSinkHelper("ns3::UdpSocketFactory", InetSocketAddress(Ipv4Address::GetAny(), sinkPort));
@@ -197,31 +204,29 @@ int main(int argc, char **argv) {
 
     AsciiTraceHelper ascii;
     csma.EnableAsciiAll(ascii.CreateFileStream("fifth.tr"));
-
     Simulator::Stop(Seconds(SIM_TIME));
     Simulator::Run();
     Simulator::Destroy();
 
     int i;
-    double total_fraction = 0;
-    double M_buffer = 0;
-    double Max_M_buffer = 0;
     for (i = 0; i < CLIENT_NUM-1; i++)
     {
-        total_fraction += (double)(packet_droped[i] + duplicates[i]) / double((packet_sent[i] + packet_droped[i] + duplicates[i]) * CLIENT_NUM);
-        Max_M_buffer += double(max_queue_clients[i]) / CLIENT_NUM;
-        M_buffer += double(queue[i]) / double(packet_sent[i]);
+        lost_rate_avg += double(packet_droped[i] + duplicates[i]) / double((packet_sent[i] + packet_droped[i] + duplicates[i]) * CLIENT_NUM);
+        max_queue_avg += double(max_queue_clients[i]) / CLIENT_NUM;
+        queue_avg += double(queue[i]) / (double(packet_sent[i]) * CLIENT_NUM);
     }
-    M_buffer = M_buffer / CLIENT_NUM;
 
-    std::cout << "[=============] SIMULATION ENDS [=============]\n";
-    std::cout << "Packets Sent (No dups):\t" << packet_sent_total << " \n";
-    std::cout << "   - Packets Dropped:\t" << packet_droped_total << " \n";
-    std::cout << "   - Duplicates:\t" << duplicates_total << " \n";
-    std::cout << "[*] Fraction of Lost packets:\t" << double(packet_droped_total + duplicates_total) / double(packet_droped_total + duplicates_total + packet_sent_total)  << " \n";
-    std::cout << "[CHAR1] Average Fraction of Lost packets:\t" << (double) total_fraction << " \n";
-    std::cout << "[CHAR3] Averege Buffer Queue:\t" << M_buffer << " \n";
-    std::cout << "[CHAR3] Max Average Buffer Queue:\t" << Max_M_buffer << " \n";
-    std::cout << "[CHAR3] Max Buffer Queue:\t" << max_queue << " \n";
+    std::cout << "alpha = " << alpha << ", N (number of clients) = " << CLIENT_NUM << '\n';
+    std::cout << "_________________________________________________________________" << '\n';
+    std::cout << "Packets Sent (Without duplicates): " << packet_sent_total << " \n";
+    std::cout << "Packets Dropped: " << packet_droped_total << " \n";
+    std::cout << "Duplicates: " << duplicates_total << " \n";
+    std::cout << "_________________________________________________________________" << '\n';
+    std::cout << "Required characteristics" << '\n';
+    std::cout << "1) Packet lost rate (average):\t" << lost_rate_avg << " \n";
+    std::cout << "3) Average queue: " << queue_avg << " \n";
+    std::cout << "   Max queue: " << max_queue << " \n";
+    std::cout << "   Average max queue: " << max_queue_avg << " (avg max among clients)" << '\n';
+    std::cout << "_________________________________________________________________" << '\n';
     return 0;
 }
